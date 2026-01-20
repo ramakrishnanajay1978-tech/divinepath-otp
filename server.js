@@ -20,29 +20,20 @@ app.get("/", (req, res) => {
   res.send("OTP Server is running");
 });
 
-// Phone formatter (India safe)
+// Phone formatter (India)
 const formatPhone = (phone) => {
   phone = phone.trim();
-
-  if (phone.startsWith("+")) {
-    return phone;
-  }
-
+  if (phone.startsWith("+")) return phone;
   return `+91${phone}`;
 };
 
-// =======================
 // SEND OTP
-// =======================
 app.post("/send-otp", async (req, res) => {
   try {
     let { phone } = req.body;
 
     if (!phone) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone required",
-      });
+      return res.status(400).json({ success: false, message: "Phone required" });
     }
 
     phone = formatPhone(phone);
@@ -55,37 +46,27 @@ app.post("/send-otp", async (req, res) => {
         channel: "sms",
       });
 
-    res.json({
-      success: true,
-      status: verification.status,
-    });
+    res.json({ success: true, status: verification.status });
   } catch (err) {
-    console.error("Twilio SEND Error:", err.message);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    console.error("SEND OTP ERROR:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// =======================
 // VERIFY OTP
-// =======================
 app.post("/verify-otp", async (req, res) => {
   try {
     let { phone, code } = req.body;
 
     if (!phone || !code) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone and OTP required",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone and OTP required" });
     }
 
     phone = formatPhone(phone);
-
-    console.log("VERIFY OTP PHONE =", phone);
-    console.log("VERIFY OTP CODE =", code);
+    console.log("VERIFY PHONE =", phone);
+    console.log("VERIFY CODE =", code);
 
     const check = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
@@ -100,4 +81,17 @@ app.post("/verify-otp", async (req, res) => {
       return res.json({ success: true });
     }
 
-    return res.status(400).js
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid OTP" });
+  } catch (err) {
+    console.error("VERIFY OTP ERROR:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// START SERVER (Render)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`OTP Server running on port ${PORT}`);
+});
