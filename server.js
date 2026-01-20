@@ -20,17 +20,9 @@ app.get("/", (req, res) => {
   res.send("OTP Server is running");
 });
 
-/**
- * SAFE phone formatter
- * - Adds +91 only once
- * - Works for send & verify
- */
+// Phone formatter (India safe)
 const formatPhone = (phone) => {
   phone = phone.trim();
-
-  if (phone.startsWith("+91")) {
-    return phone;
-  }
 
   if (phone.startsWith("+")) {
     return phone;
@@ -54,8 +46,6 @@ app.post("/send-otp", async (req, res) => {
     }
 
     phone = formatPhone(phone);
-
-    // 🔍 DEBUG LOG
     console.log("SEND OTP PHONE =", phone);
 
     const verification = await client.verify.v2
@@ -94,7 +84,6 @@ app.post("/verify-otp", async (req, res) => {
 
     phone = formatPhone(phone);
 
-    // 🔍 DEBUG LOGS
     console.log("VERIFY OTP PHONE =", phone);
     console.log("VERIFY OTP CODE =", code);
 
@@ -102,7 +91,7 @@ app.post("/verify-otp", async (req, res) => {
       .services(process.env.TWILIO_VERIFY_SID)
       .verificationChecks.create({
         to: phone,
-        code: code,
+        code: String(code),
       });
 
     console.log("VERIFY STATUS =", check.status);
@@ -111,24 +100,4 @@ app.post("/verify-otp", async (req, res) => {
       return res.json({ success: true });
     }
 
-    return res.status(400).json({
-      success: false,
-      message: "Invalid OTP",
-    });
-  } catch (err) {
-    console.error("Twilio VERIFY Error:", err.message);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-});
-
-// =======================
-// START SERVER (Render)
-// =======================
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`OTP Server running on port ${PORT}`);
-});
+    return res.status(400).js
