@@ -19,14 +19,24 @@ app.get("/", (req, res) => {
   res.send("OTP Server is running");
 });
 
+// Helper: normalize phone number
+const formatPhone = (phone) => {
+  if (!phone.startsWith("+")) {
+    return `+91${phone}`; // India default
+  }
+  return phone;
+};
+
 // Send OTP
 app.post("/send-otp", async (req, res) => {
   try {
-    const { phone } = req.body;
+    let { phone } = req.body;
 
     if (!phone) {
       return res.status(400).json({ success: false, message: "Phone required" });
     }
+
+    phone = formatPhone(phone);
 
     const verification = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
@@ -38,36 +48,35 @@ app.post("/send-otp", async (req, res) => {
     res.json({ success: true, status: verification.status });
   } catch (err) {
     console.error("Twilio Error:", err.message);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // Verify OTP
 app.post("/verify-otp", async (req, res) => {
   try {
-    const { phone, code } = req.body;
+    let { phone, code } = req.body;
+
+    phone = formatPhone(phone);
 
     const check = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
       .verificationChecks.create({
         to: phone,
-        code: code,
+        code,
       });
 
     if (check.status === "approved") {
-      res.json({ success: true });
-    } else {
-      res.json({ success: false, message: "Invalid OTP" });
+      return res.json({ success: true });
     }
+
+    res.status(400).json({ success: false, message: "Invalid OTP" });
   } catch (err) {
+    console.error("Verify Error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(` OTP Server running on http://0.0.0.0:${PORT}`);
-});
+  console.log(`OTP Server run
