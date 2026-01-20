@@ -9,6 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Twilio client
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -19,15 +20,28 @@ app.get("/", (req, res) => {
   res.send("OTP Server is running");
 });
 
-// Normalize phone number (India)
+/**
+ * SAFE phone formatter
+ * - Adds +91 only once
+ * - Works for send & verify
+ */
 const formatPhone = (phone) => {
-  if (!phone.startsWith("+")) {
-    return `+91${phone}`;
+  phone = phone.trim();
+
+  if (phone.startsWith("+91")) {
+    return phone;
   }
-  return phone;
+
+  if (phone.startsWith("+")) {
+    return phone;
+  }
+
+  return `+91${phone}`;
 };
 
-// Send OTP
+// =======================
+// SEND OTP
+// =======================
 app.post("/send-otp", async (req, res) => {
   try {
     let { phone } = req.body;
@@ -41,6 +55,9 @@ app.post("/send-otp", async (req, res) => {
 
     phone = formatPhone(phone);
 
+    // 🔍 DEBUG LOG
+    console.log("SEND OTP PHONE =", phone);
+
     const verification = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
       .verifications.create({
@@ -53,7 +70,7 @@ app.post("/send-otp", async (req, res) => {
       status: verification.status,
     });
   } catch (err) {
-    console.error("Twilio Error:", err.message);
+    console.error("Twilio SEND Error:", err.message);
     res.status(500).json({
       success: false,
       message: err.message,
@@ -61,19 +78,34 @@ app.post("/send-otp", async (req, res) => {
   }
 });
 
-// Verify OTP
+// =======================
+// VERIFY OTP
+// =======================
 app.post("/verify-otp", async (req, res) => {
   try {
     let { phone, code } = req.body;
 
+    if (!phone || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP required",
+      });
+    }
+
     phone = formatPhone(phone);
+
+    // 🔍 DEBUG LOGS
+    console.log("VERIFY OTP PHONE =", phone);
+    console.log("VERIFY OTP CODE =", code);
 
     const check = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SID)
       .verificationChecks.create({
         to: phone,
-        code,
+        code: code,
       });
+
+    console.log("VERIFY STATUS =", check.status);
 
     if (check.status === "approved") {
       return res.json({ success: true });
@@ -84,7 +116,7 @@ app.post("/verify-otp", async (req, res) => {
       message: "Invalid OTP",
     });
   } catch (err) {
-    console.error("Verify Error:", err.message);
+    console.error("Twilio VERIFY Error:", err.message);
     res.status(500).json({
       success: false,
       message: err.message,
@@ -92,7 +124,9 @@ app.post("/verify-otp", async (req, res) => {
   }
 });
 
-// IMPORTANT: Render port handling
+// =======================
+// START SERVER (Render)
+// =======================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
